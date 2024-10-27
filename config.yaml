@@ -4,7 +4,7 @@
 api:
   key: 'YOUR_API_KEY'
   base_url: 'https://yunwu.zeabur.app'
-  model: 'claude-3-5-sonnet-20240620'
+  model: 'gemma2'
 
 # Replicate API settings
 replicate_api_token: 'YOUR_REPLICATE_API_TOKEN'

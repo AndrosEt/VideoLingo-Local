@@ -40,7 +40,7 @@ def translate_lines(lines, previous_content_prompt, after_cotent_prompt, things_
             return valid_translate_result(response_data, ['1'], ['direct'])
         def valid_express(response_data):
             return valid_translate_result(response_data, ['1'], ['free'])
-        for retry in range(3):
+        for retry in range(10):
             if step_name == 'faithfulness':
                 result = ask_gpt(prompt, response_json=True, valid_def=valid_faith, log_title=f'translate_{step_name}')
             elif step_name == 'expressiveness':
@@ -49,7 +49,7 @@ def translate_lines(lines, previous_content_prompt, after_cotent_prompt, things_
                 return result
             if retry != 2:
                 console.print(f'[yellow]⚠️ {step_name.capitalize()} translation of block {index} failed, Retry...[/yellow]')
-        raise ValueError(f'[red]❌ {step_name.capitalize()} translation of block {index} failed after 3 retries. Please check your input text.[/red]')
+        raise ValueError(f'[red]❌ {step_name.capitalize()} translation of block {index} failed after 10 retries. Please check your input text.[/red]')
 
     ## Step 1: Faithful to the Original Text
     prompt1 = get_prompt_faithfulness(lines, shared_prompt)
@@ -74,10 +74,23 @@ def translate_lines(lines, previous_content_prompt, after_cotent_prompt, things_
     console.print(table)
 
     translate_result = "\n".join([express_result[i]["free"].replace('\n', ' ').strip() for i in express_result])
-
+    
+    # 改进的错误信息
     if len(lines.split('\n')) != len(translate_result.split('\n')):
-        console.print(Panel(f'[red]❌ Translation of block {index} failed, Length Mismatch, Please check `output/gpt_log/translate_expressiveness.json`[/red]'))
-        raise ValueError(f'Origin ···{lines}···,\nbut got ···{translate_result}···')
+        orig_lines = lines.split('\n')
+        trans_lines = translate_result.split('\n')
+        console.print(Panel(
+            f'[red]❌ Translation of block {index} failed:\n'
+            f'Original lines: {len(orig_lines)}\n'
+            f'Translated lines: {len(trans_lines)}\n'
+            f'Please check `output/gpt_log/translate_expressiveness.json`\n'
+            f'You may need to adjust the translation prompt or retry.[/red]'
+        ))
+        raise ValueError(
+            f'Translation length mismatch:\n'
+            f'Original ({len(orig_lines)} lines):\n{lines}\n'
+            f'Translation ({len(trans_lines)} lines):\n{translate_result}'
+        )
 
     return translate_result, lines
 

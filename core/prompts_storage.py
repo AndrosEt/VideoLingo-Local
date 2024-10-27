@@ -9,35 +9,49 @@ def get_split_prompt(sentence, num_parts = 2, word_limit = 20):
     # ! only support num_parts = 2
     language = get_whisper_language()
     split_prompt = f"""
-### Role
-You are a professional and experienced Netflix subtitle splitter in {language}.
+### Role and Task
+You are a professional Netflix subtitle splitter in {language}. Split the given subtitle text into {num_parts} parts, each less than {word_limit} words.
 
-### Task
-Your task is to split the given subtitle text into **{num_parts}** parts, each should be less than {word_limit} words.
+### Key Requirements
+1. Maintain sentence coherence and meaning integrity.
+2. Split at punctuation marks or conjunctions (e.g., periods, commas, "and", "but", "because").
+3. Insert `[br]` ONLY at split positions, NEVER at sentence start/end.
+4. Ensure roughly equal part lengths (minimum 3 words per part).
+5. No empty spaces before/after splits.
 
-### Requirements
-1. Try to maintain the coherence of the sentence meaning, split according to Netflix subtitle standards, ensuring the two parts are relatively independent.
-2. The length of each part should be roughly equal, no part should be less than 3 words, but the integrity of the sentence is more important.
-3. Prioritize splitting at punctuation marks, such as periods, commas, and conjunctions (e.g., "and", "but", "because", "when", "then", "if", "so", "that").
+CRITICAL: NEVER insert [br] at sentence start or end. Use [br] only for mid-sentence splits.
 
-### Steps
-1. Analyze the grammar and structure of the given text.
-2. Provide 2 different ways to split the text, each with different split points, output complete sentences (do not change any letters or punctuation), insert [br] tags at the split positions.
-3. Briefly compare and evaluate the above 2 split methods, considering readability, grammatical structure, and contextual coherence, choose the best split method.
-4. Give the best split method number, 1 or 2.
+### Example
+Correct: This is the first part[br]and this is the second part.
+Incorrect: [br]This is the whole sentence.[br]
 
-### Output Format
-Please provide your answer in the following JSON format, <<>> represents placeholders:
+### Process
+1. Analyze text structure.
+2. Provide 2 split methods with different split points.
+3. Evaluate both methods for readability and coherence.
+4. Choose the best method (1 or 2).
+5. Verify [br] placement is correct.
+
+### Output Format (JSON)
 {{
-    "analysis": "Brief analysis of the text structure and split strategy",
-    "split_1": "<<The first split method, output complete sentences, insert [br] as a delimiter at the split position. e.g. this is the first part [br] this is the second part.>>",
-    "split_2": "<<The second split method>>",
-    "eval": "<<Unified brief evaluation of the 2 split methods, written in one sentence, no line breaks>>",
-    "best": "<<The best split method number, 1 or 2>>"
+    "analysis": "Brief text structure analysis",
+    "split_1": "First split method",
+    "split_2": "Second split method",
+    "eval": "Concise evaluation of both methods",
+    "best": "Best method number (1 or 2)",
+    "verification": "Confirm correct [br] placement"
 }}
 
+### Self-Check
+Ensure:
+1. [br] only in sentence middle.
+2. Split parts are complete fragments.
+3. No [br] at sentence start/end (critical error if violated).
+
 ### Given Text
-<split_this_sentence>\n{sentence}\n</split_this_sentence>
+<split_this_sentence>
+{sentence}
+</split_this_sentence>
 
 """.strip()
 
@@ -347,3 +361,6 @@ Please complete the following JSON data, where << >> represents content you need
         duration=duration,
         rule=rule
     )
+
+
+
