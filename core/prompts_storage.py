@@ -1,12 +1,26 @@
+import re
 import os,sys,json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.step2_whisper import get_whisper_language
 from core.config_utils import load_key
+from typing import Dict, Any, Optional
+
+COMMON_RULES = """
+### Critical Requirements
+1. DO NOT generate empty lines or lines with only spaces
+2. Each line must contain meaningful content
+3. Maintain structural consistency with the source text
+4. Follow the exact split points marked by [br]
+5. Verify all generated content has actual text
+"""
 
 ## ================================================================
 # @ step4_splitbymeaning.py
 def get_split_prompt(sentence, num_parts = 2, word_limit = 20):
     # ! only support num_parts = 2
+
+    sentence = preprocess_text(sentence)
+
     language = get_whisper_language()
     split_prompt = f"""
 ### Role and Task
@@ -55,7 +69,9 @@ Ensure:
 
 """.strip()
 
-    return split_prompt
+    prompt = f"{COMMON_RULES}\n\n{split_prompt}"
+
+    return prompt
 
 
 ## ================================================================
@@ -196,7 +212,9 @@ Based on the provided original {src_language} subtitles, you need to:
 Please complete the following JSON data, where << >> represents placeholders that should not appear in your answer, and return your translation results in JSON format:
 {json.dumps(json_format, ensure_ascii=False, indent=4)}
 '''
-    return prompt_faithfulness.strip()
+    
+    prompt = f"{COMMON_RULES}\n\n{prompt_faithfulness}"
+    return prompt.strip()
 
 
 def get_prompt_expressiveness(faithfulness_result, lines, shared_prompt):
@@ -250,7 +268,8 @@ Make sure to generate the correct Json format, don't output " in the value.
 Please complete the following JSON data, where << >> represents placeholders that should not appear in your answer, and return your translation results in JSON format:
 {json.dumps(json_format, ensure_ascii=False, indent=4)}
 '''
-    return prompt_expressiveness.strip()
+    prompt = f"{COMMON_RULES}\n\n{prompt_expressiveness}"
+    return prompt.strip()
 
 
 ## ================================================================
@@ -312,7 +331,8 @@ Please complete the following JSON data, where << >> represents placeholders, an
         }}''' for i in range(num_parts)
     )
 
-    return align_prompt.format(
+    prompt = f"{COMMON_RULES}\n\n{align_prompt}"
+    return prompt.format(
         src_language=src_language,
         target_language=TARGET_LANGUAGE,
         src_sub=src_sub,
@@ -356,11 +376,19 @@ Please complete the following JSON data, where << >> represents content you need
     "trans_text_processed": "<<Optimized and shortened subtitle in the original subtitle language>>"
 }}
 '''
-    return trim_prompt.format(
+
+    prompt = f"{COMMON_RULES}\n\n{trim_prompt}"
+    return prompt.format(
         trans_text=trans_text,
         duration=duration,
         rule=rule
     )
 
+def preprocess_text(text: str) -> str:
+
+    text = re.sub(r'\s+', ' ', text.strip())
+    # Ensure there are no consecutive [br] tags
+    text = re.sub(r'\[br\]\s*\[br\]', '[br]', text)
+    return text
 
 

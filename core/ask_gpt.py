@@ -60,6 +60,13 @@ def ask_gpt(prompt, response_json=True, valid_def=None, log_title='default'):
                     'role': 'user',
                     'content': prompt
                 }],
+                 options={
+                    'num_gpu': 35,         # equivalent to gpu_layers
+                    'num_ctx': 4096,       # context window size
+                    'temperature': 0.7,    # generation temperature
+                    'top_p': 0.9,         # sampling parameter
+                    'mirostat': 0,        # sampling mode
+                },
                 format='json' if response_json else None,
                 stream=False
             )
