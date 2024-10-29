@@ -61,11 +61,12 @@ def ask_gpt(prompt, response_json=True, valid_def=None, log_title='default'):
                     'content': prompt
                 }],
                  options={
-                    'num_gpu': 35,         # equivalent to gpu_layers
-                    'num_ctx': 4096,       # context window size
-                    'temperature': 0.7,    # generation temperature
-                    'top_p': 0.9,         # sampling parameter
-                    'mirostat': 0,        # sampling mode
+                    'num_gpu': 15,         # RTX 4060 Ti has 8GB of VRAM, moderate usage is recommended
+                    'num_ctx': 4096,       # Gemma 2B supports a maximum context of 8K
+                    'temperature': 0.7,    # Can remain unchanged
+                    'top_p': 0.9,          # Can remain unchanged
+                    'mirostat': 0,         # Can remain unchanged
+                    'num_thread': 6       # Considering your i7-13700 has many cores, you can increase the number of threads
                 },
                 format='json' if response_json else None,
                 stream=False

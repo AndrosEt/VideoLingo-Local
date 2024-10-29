@@ -174,14 +174,47 @@ def get_prompt_faithfulness(lines, shared_prompt):
     # Split lines by \n
     line_splits = lines.split('\n')
     
-    # Create JSON return format example
+    # Modify JSON format example, add more explicit format instructions
     json_format = {}
     for i, line in enumerate(line_splits, 1):
-        json_format[i] = {
+        json_format[str(i)] = {  # Ensure key is a string
             "origin": line,
             "direct": f"<<direct {TARGET_LANGUAGE} translation>>"
         }
     
+    # Add format validation instructions in the prompt
+    format_validation = """
+### Format Validation Rules
+1. Each subtitle line must be a top-level entry in the JSON
+2. DO NOT nest entries inside each other
+3. Each entry must have exactly two fields: "origin" and "direct"
+4. Entry keys must be strings ("1", "2", "3", etc.)
+
+Example of CORRECT format:
+{
+    "1": {
+        "origin": "First line",
+        "direct": "Translation 1"
+    },
+    "2": {
+        "origin": "Second line",
+        "direct": "Translation 2"
+    }
+}
+
+Example of INCORRECT format (DO NOT USE):
+{
+    "1": {
+        "origin": "First line",
+        "direct": "Translation 1",
+        "2": {  // NO NESTING ALLOWED!
+            "origin": "Second line",
+            "direct": "Translation 2"
+        }
+    }
+}
+"""
+
     src_language = get_whisper_language()
     prompt_faithfulness = f'''
 ### Role Definition
@@ -208,8 +241,10 @@ Based on the provided original {src_language} subtitles, you need to:
 {lines}
 </subtitles>
 
+{format_validation}
+
 ### Output Format
-Please complete the following JSON data, where << >> represents placeholders that should not appear in your answer, and return your translation results in JSON format:
+Please complete the following JSON data, maintaining a flat structure where each subtitle line is a top-level entry:
 {json.dumps(json_format, ensure_ascii=False, indent=4)}
 '''
     
@@ -390,5 +425,6 @@ def preprocess_text(text: str) -> str:
     # Ensure there are no consecutive [br] tags
     text = re.sub(r'\[br\]\s*\[br\]', '[br]', text)
     return text
+
 
 

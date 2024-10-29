@@ -58,7 +58,12 @@ def split_sentence(sentence, num_parts, word_limit=18, index=-1, retry_attempt=0
             return {"status": "error", "message": "Missing required key: `best`"}
         return {"status": "success", "message": "Split completed"}
     response_data = ask_gpt(split_prompt + ' ' * retry_attempt, response_json=True, valid_def=valid_split, log_title='sentence_splitbymeaning')
-    best_split = response_data[f"split_{response_data['best']}"]
+    best = response_data['best']
+    if f"1" in best:
+        best = 1
+    elif f"2" in best:
+        best = 2
+    best_split = response_data[f"split_{best}"]
     split_points = find_split_positions(sentence, best_split)
     # split the sentence based on the split points
     for i, split_point in enumerate(split_points):
