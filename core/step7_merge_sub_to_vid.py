@@ -23,8 +23,8 @@ SRC_OUTLINE_WIDTH = 1
 SRC_SHADOW_COLOR = '&H80000000'
 TRANS_FONT_COLOR = '&H00FFFF'
 TRANS_OUTLINE_COLOR = '&H000000'
-TRANS_OUTLINE_WIDTH = 1 
-TRANS_BACK_COLOR = '&H33000000'
+TRANS_OUTLINE_WIDTH = 2  
+TRANS_BACK_COLOR = '&H00000000'  
 
 def merge_subtitles_to_video():
     RESOLUTION = load_key("resolution")
@@ -59,13 +59,13 @@ def merge_subtitles_to_video():
         '-vf', (
             f"scale={TARGET_WIDTH}:{TARGET_HEIGHT}:force_original_aspect_ratio=decrease,"
             f"pad={TARGET_WIDTH}:{TARGET_HEIGHT}:(ow-iw)/2:(oh-ih)/2,"
-            f"subtitles={en_srt}:force_style='FontSize={SRC_FONT_SIZE},FontName={FONT_NAME}," 
-            f"PrimaryColour={SRC_FONT_COLOR},OutlineColour={SRC_OUTLINE_COLOR},OutlineWidth={SRC_OUTLINE_WIDTH},"
-            f"ShadowColour={SRC_SHADOW_COLOR},BorderStyle=1',"
-            f"subtitles={trans_srt}:force_style='FontSize={TRANS_FONT_SIZE},FontName={TRANS_FONT_NAME},"
-            f"PrimaryColour={TRANS_FONT_COLOR},OutlineColour={TRANS_OUTLINE_COLOR},OutlineWidth={TRANS_OUTLINE_WIDTH},"
-            f"BackColour={TRANS_BACK_COLOR},Alignment=2,MarginV=25,BorderStyle=4'"
-        ).encode('utf-8'),  # 使用 UTF-8 编码
+            f"subtitles={en_srt}:force_style='Fontsize={SRC_FONT_SIZE},FontName={FONT_NAME}," 
+            f"PrimaryColour={SRC_FONT_COLOR},OutlineColour={SRC_OUTLINE_COLOR},BorderStyle=1,"
+            f"Outline={SRC_OUTLINE_WIDTH}',"
+            f"subtitles={trans_srt}:force_style='Fontsize={TRANS_FONT_SIZE},FontName={TRANS_FONT_NAME},"
+            f"PrimaryColour={TRANS_FONT_COLOR},OutlineColour={TRANS_OUTLINE_COLOR},BorderStyle=1,"
+            f"Outline={TRANS_OUTLINE_WIDTH},Alignment=2,MarginV=25'"
+        ).encode('utf-8'),
         '-y',
         output_video
     ]
