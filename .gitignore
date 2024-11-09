@@ -171,3 +171,10 @@ config.backup.yaml
 # runtime
 runtime/
 dev/
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/VideoLingo.iml
+.idea/inspectionProfiles/profiles_settings.xml
+.vscode/launch.json
+.idea/.gitignore

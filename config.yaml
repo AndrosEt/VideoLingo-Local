@@ -4,7 +4,7 @@
 api:
   key: 'YOUR_API_KEY'
   base_url: 'https://yunwu.zeabur.app'
-  model: 'claude-3-5-sonnet-20240620'
+  model: 'gpt-4o-mini-2024-07-18'
 
 # Replicate API settings
 replicate_api_token: 'YOUR_REPLICATE_API_TOKEN'
@@ -21,7 +21,7 @@ whisper:
   language: 'en'
 
 # Video resolution [0x0, 640x360, 1920x1080]  0x0 will generate a 0-second black video placeholder
-resolution: '640x360'
+resolution: '1920x1080'
 
 ## ======================== Advanced Settings ======================== ##
 # *Default resolution for downloading YouTube videos [360, 1080, best]
