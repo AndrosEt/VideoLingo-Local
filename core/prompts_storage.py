@@ -1,47 +1,77 @@
+import re
 import os,sys,json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.step2_whisper import get_whisper_language
 from core.config_utils import load_key
+from typing import Dict, Any, Optional
+
+COMMON_RULES = """
+### Critical Requirements
+1. DO NOT generate empty lines or lines with only spaces
+2. Each line must contain meaningful content
+3. Maintain structural consistency with the source text
+4. Follow the exact split points marked by [br]
+5. Verify all generated content has actual text
+"""
 
 ## ================================================================
 # @ step4_splitbymeaning.py
 def get_split_prompt(sentence, num_parts = 2, word_limit = 20):
     # ! only support num_parts = 2
+
+    sentence = preprocess_text(sentence)
+
     language = get_whisper_language()
     split_prompt = f"""
-### Role
-You are a professional and experienced Netflix subtitle splitter in {language}.
+### Role and Task
+You are a professional Netflix subtitle splitter in {language}. Split the given subtitle text into {num_parts} parts, each less than {word_limit} words.
 
-### Task
-Your task is to split the given subtitle text into **{num_parts}** parts, each should be less than {word_limit} words.
+### Key Requirements
+1. Maintain sentence coherence and meaning integrity.
+2. Split at punctuation marks or conjunctions (e.g., periods, commas, "and", "but", "because").
+3. Insert `[br]` ONLY at split positions, NEVER at sentence start/end.
+4. Ensure roughly equal part lengths (minimum 3 words per part).
+5. No empty spaces before/after splits.
 
-### Requirements
-1. Try to maintain the coherence of the sentence meaning, split according to Netflix subtitle standards, ensuring the two parts are relatively independent.
-2. The length of each part should be roughly equal, no part should be less than 3 words, but the integrity of the sentence is more important.
-3. Prioritize splitting at punctuation marks, such as periods, commas, and conjunctions (e.g., "and", "but", "because", "when", "then", "if", "so", "that").
+CRITICAL: NEVER insert [br] at sentence start or end. Use [br] only for mid-sentence splits.
 
-### Steps
-1. Analyze the grammar and structure of the given text.
-2. Provide 2 different ways to split the text, each with different split points, output complete sentences (do not change any letters or punctuation), insert [br] tags at the split positions.
-3. Briefly compare and evaluate the above 2 split methods, considering readability, grammatical structure, and contextual coherence, choose the best split method.
-4. Give the best split method number, 1 or 2.
+### Example
+Correct: This is the first part[br]and this is the second part.
+Incorrect: [br]This is the whole sentence.[br]
 
-### Output Format
-Please provide your answer in the following JSON format, <<>> represents placeholders:
+### Process
+1. Analyze text structure.
+2. Provide 2 split methods with different split points.
+3. Evaluate both methods for readability and coherence.
+4. Choose the best method (1 or 2).
+5. Verify [br] placement is correct.
+
+### Output Format (JSON)
 {{
-    "analysis": "Brief analysis of the text structure and split strategy",
-    "split_1": "<<The first split method, output complete sentences, insert [br] as a delimiter at the split position. e.g. this is the first part [br] this is the second part.>>",
-    "split_2": "<<The second split method>>",
-    "eval": "<<Unified brief evaluation of the 2 split methods, written in one sentence, no line breaks>>",
-    "best": "<<The best split method number, 1 or 2>>"
+    "analysis": "Brief text structure analysis",
+    "split_1": "First split method",
+    "split_2": "Second split method",
+    "eval": "Concise evaluation of both methods",
+    "best": "Best method number (1 or 2)",
+    "verification": "Confirm correct [br] placement"
 }}
 
+### Self-Check
+Ensure:
+1. [br] only in sentence middle.
+2. Split parts are complete fragments.
+3. No [br] at sentence start/end (critical error if violated).
+
 ### Given Text
-<split_this_sentence>\n{sentence}\n</split_this_sentence>
+<split_this_sentence>
+{sentence}
+</split_this_sentence>
 
 """.strip()
 
-    return split_prompt
+    prompt = f"{COMMON_RULES}\n\n{split_prompt}"
+
+    return prompt
 
 
 ## ================================================================
@@ -144,14 +174,47 @@ def get_prompt_faithfulness(lines, shared_prompt):
     # Split lines by \n
     line_splits = lines.split('\n')
     
-    # Create JSON return format example
+    # Modify JSON format example, add more explicit format instructions
     json_format = {}
     for i, line in enumerate(line_splits, 1):
-        json_format[i] = {
+        json_format[str(i)] = {  # Ensure key is a string
             "origin": line,
             "direct": f"<<direct {TARGET_LANGUAGE} translation>>"
         }
     
+    # Add format validation instructions in the prompt
+    format_validation = """
+### Format Validation Rules
+1. Each subtitle line must be a top-level entry in the JSON
+2. DO NOT nest entries inside each other
+3. Each entry must have exactly two fields: "origin" and "direct"
+4. Entry keys must be strings ("1", "2", "3", etc.)
+
+Example of CORRECT format:
+{
+    "1": {
+        "origin": "First line",
+        "direct": "Translation 1"
+    },
+    "2": {
+        "origin": "Second line",
+        "direct": "Translation 2"
+    }
+}
+
+Example of INCORRECT format (DO NOT USE):
+{
+    "1": {
+        "origin": "First line",
+        "direct": "Translation 1",
+        "2": {  // NO NESTING ALLOWED!
+            "origin": "Second line",
+            "direct": "Translation 2"
+        }
+    }
+}
+"""
+
     src_language = get_whisper_language()
     prompt_faithfulness = f'''
 ### Role Definition
@@ -178,11 +241,15 @@ Based on the provided original {src_language} subtitles, you need to:
 {lines}
 </subtitles>
 
+{format_validation}
+
 ### Output Format
-Please complete the following JSON data, where << >> represents placeholders that should not appear in your answer, and return your translation results in JSON format:
+Please complete the following JSON data, maintaining a flat structure where each subtitle line is a top-level entry:
 {json.dumps(json_format, ensure_ascii=False, indent=4)}
 '''
-    return prompt_faithfulness.strip()
+    
+    prompt = f"{COMMON_RULES}\n\n{prompt_faithfulness}"
+    return prompt.strip()
 
 
 def get_prompt_expressiveness(faithfulness_result, lines, shared_prompt):
@@ -236,7 +303,8 @@ Make sure to generate the correct Json format, don't output " in the value.
 Please complete the following JSON data, where << >> represents placeholders that should not appear in your answer, and return your translation results in JSON format:
 {json.dumps(json_format, ensure_ascii=False, indent=4)}
 '''
-    return prompt_expressiveness.strip()
+    prompt = f"{COMMON_RULES}\n\n{prompt_expressiveness}"
+    return prompt.strip()
 
 
 ## ================================================================
@@ -298,7 +366,8 @@ Please complete the following JSON data, where << >> represents placeholders, an
         }}''' for i in range(num_parts)
     )
 
-    return align_prompt.format(
+    prompt = f"{COMMON_RULES}\n\n{align_prompt}"
+    return prompt.format(
         src_language=src_language,
         target_language=TARGET_LANGUAGE,
         src_sub=src_sub,
@@ -342,8 +411,20 @@ Please complete the following JSON data, where << >> represents content you need
     "trans_text_processed": "<<Optimized and shortened subtitle in the original subtitle language>>"
 }}
 '''
-    return trim_prompt.format(
+
+    prompt = f"{COMMON_RULES}\n\n{trim_prompt}"
+    return prompt.format(
         trans_text=trans_text,
         duration=duration,
         rule=rule
     )
+
+def preprocess_text(text: str) -> str:
+
+    text = re.sub(r'\s+', ' ', text.strip())
+    # Ensure there are no consecutive [br] tags
+    text = re.sub(r'\[br\]\s*\[br\]', '[br]', text)
+    return text
+
+
+

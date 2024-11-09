@@ -7,14 +7,6 @@ import requests
 
 def page_setting():
     with st.expander("LLM Configuration", expanded=True):
-        api_key = st.text_input("API_KEY", value=load_key("api.key"))
-        if api_key != load_key("api.key"):
-            update_key("api.key", api_key)
-
-        selected_base_url = st.text_input("BASE_URL", value=load_key("api.base_url"), help="Base URL for API requests")
-        if selected_base_url != load_key("api.base_url"):
-            update_key("api.base_url", selected_base_url)
-
         col1, col2 = st.columns([4, 1])
         with col1:
             model = st.text_input("MODEL", value=load_key("api.model"))

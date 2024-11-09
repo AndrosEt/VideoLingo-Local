@@ -26,10 +26,10 @@ def split_chunks_by_chars(chunk_size=600, max_i=12):
     for sentence in sentences:
         if len(chunk) + len(sentence + '\n') > chunk_size or sentence_count == max_i:
             chunks.append(chunk.strip())
-            chunk = sentence + '\n'
+            chunk = sentence + ' \n '
             sentence_count = 1
         else:
-            chunk += sentence + '\n'
+            chunk += sentence + ' \n '
             sentence_count += 1
     chunks.append(chunk.strip())
     return chunks
@@ -60,7 +60,8 @@ def translate_all():
         chunks = split_chunks_by_chars()
     else:
         console.print("[yellow]🚨 Not using sonnet, using smaller chunk size and max_i to avoid OOM[/yellow]")
-        chunks = split_chunks_by_chars(chunk_size=500, max_i=10)
+        chunks = split_chunks_by_chars(chunk_size=300, max_i=2)
+
     with open('output/log/terminology.json', 'r', encoding='utf-8') as file:
         theme_prompt = json.load(file).get('theme')
 
