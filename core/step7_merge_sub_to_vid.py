@@ -47,25 +47,7 @@ def merge_subtitles_to_video():
     TARGET_WIDTH, TARGET_HEIGHT = RESOLUTION.split('x')
     video_file = find_video_files()
     output_video = "output/output_video_with_subs.mp4"
-    output_video_30fps = "output/output_video_with_subs_30fps.mp4"
     os.makedirs(os.path.dirname(output_video), exist_ok=True)
-
-    # Get input video frame rate
-    probe_cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', 
-                 '-show_entries', 'stream=r_frame_rate', '-of', 'default=noprint_wrappers=1:nokey=1', 
-                 video_file]
-    
-    try:
-        fps_str = subprocess.check_output(probe_cmd, universal_newlines=True).strip()
-        if '/' in fps_str:
-            num, den = map(int, fps_str.split('/'))
-            fps = num/den
-        else:
-            fps = float(fps_str)
-        rprint(f"[bold blue]Input video FPS: {fps}[/bold blue]")
-    except Exception as e:
-        rprint(f"[bold red]Warning: Could not detect video FPS: {e}. Using default 30fps.[/bold red]")
-        fps = 30
 
     # Check resolution
     if RESOLUTION == '0x0':
@@ -117,26 +99,15 @@ def merge_subtitles_to_video():
         f"Outline={TRANS_OUTLINE_WIDTH},Alignment=2,MarginV=25'"
     )
 
-    # Generate video with original frame rate
-    print("🎬 Start merging subtitles to video (original FPS)...")
-    ffmpeg_cmd_original = [
-        'ffmpeg', '-i', video_file,
-        '-vf', base_vf.encode('utf-8'),
-        '-r', str(fps),
-    ] + encoding_params + [
-        '-y',
-        output_video
-    ]
-    
     # Generate 30fps video
     print("🎬 Start merging subtitles to video (30 FPS)...")
-    ffmpeg_cmd_30fps = [
+    ffmpeg_cmd = [
         'ffmpeg', '-i', video_file,
         '-vf', base_vf.encode('utf-8'),
         '-r', '30',
     ] + encoding_params + [
         '-y',
-        output_video_30fps
+        output_video
     ]
 
     def run_ffmpeg(cmd, desc):
@@ -160,14 +131,10 @@ def merge_subtitles_to_video():
                 process.kill()
             return False
 
-    # Execute both conversion tasks sequentially
-    original_success = run_ffmpeg(ffmpeg_cmd_original, "Original FPS video generation")
-    thirty_fps_success = run_ffmpeg(ffmpeg_cmd_30fps, "30 FPS video generation")
-
-    if original_success and thirty_fps_success:
-        print("🎉🎥 Both videos have been generated successfully! Please check in the `output` folder 👀")
-        print(f"Original FPS video: {output_video}")
-        print(f"30 FPS video: {output_video_30fps}")
+    # Execute video generation
+    if run_ffmpeg(ffmpeg_cmd, "30 FPS video generation"):
+        print(f"🎉🎥 Video has been generated successfully! Please check in the `output` folder 👀")
+        print(f"Output video: {output_video}")
     else:
         print("⚠️ Some errors occurred during video generation. Please check the logs above.")
 

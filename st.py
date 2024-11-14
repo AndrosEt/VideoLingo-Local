@@ -29,12 +29,14 @@ def text_processing_section():
             if st.button("Start Processing Subtitles", key="text_processing_button"):
                 process_text()
                 st.rerun()
+            if st.button("Merge Subtitles to Video", key="merge_subtitles_button"):
+                step7_merge_sub_to_vid.merge_subtitles_to_video()
         else:
             st.success("Subtitle translation is complete! It's recommended to download the srt file and process it yourself.")
             if load_key("resolution") != "0x0":
                 st.video("output/output_video_with_subs.mp4")
             download_subtitle_zip_button(text="Download All Subtitles")
-            
+                    
             if st.button("Archive to 'history'", key="cleanup_in_text_processing"):
                 cleanup()
                 st.rerun()
@@ -54,8 +56,8 @@ def process_text():
     with st.spinner("Processing and aligning subtitles..."): 
         step5_splitforsub.split_for_sub_main()
         step6_generate_final_timeline.align_timestamp_main()
-    with st.spinner("Merging subtitles to video..."):
-        step7_merge_sub_to_vid.merge_subtitles_to_video()
+    # with st.spinner("Merging subtitles to video..."):
+    #     step7_merge_sub_to_vid.merge_subtitles_to_video()
     
     st.success("Subtitle processing complete! 🎉")
     st.balloons()
