@@ -3,8 +3,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from threading import Lock
 import json_repair
 import json 
-import ollama
+from openai import OpenAI
 import time
+from requests.exceptions import RequestException
 from core.config_utils import load_key
 
 LOG_FOLDER = 'output/gpt_log'
@@ -45,63 +46,61 @@ def check_ask_gpt_history(prompt, model, log_title):
 def ask_gpt(prompt, response_json=True, valid_def=None, log_title='default'):
     api_set = load_key("api")
     llm_support_json = load_key("llm_support_json")
-    
     with LOCK:
         history_response = check_ask_gpt_history(prompt, api_set["model"], log_title)
         if history_response:
             return history_response
     
-    max_retries = 10
+    if not api_set["key"]:
+        raise ValueError(f"⚠️API_KEY is missing")
+    
+    messages = [{"role": "user", "content": prompt}]
+    
+    base_url = api_set["base_url"].strip('/') + '/v1' if 'v1' not in api_set["base_url"] else api_set["base_url"]
+    client = OpenAI(api_key=api_set["key"], base_url=base_url)
+    response_format = {"type": "json_object"} if response_json and api_set["model"] in llm_support_json else None
+
+    max_retries = 3
     for attempt in range(max_retries):
         try:
-            response = ollama.chat(
+            response = client.chat.completions.create(
                 model=api_set["model"],
-                messages=[{
-                    'role': 'user',
-                    'content': prompt
-                }],
-                 options={
-                    'num_gpu': 15,         # RTX 4060 Ti has 8GB of VRAM, moderate usage is recommended
-                    'num_ctx': 4096,       # Gemma 2B supports a maximum context of 8K
-                    'temperature': 0.7,    # Can remain unchanged
-                    'top_p': 0.9,          # Can remain unchanged
-                    'mirostat': 0,         # Can remain unchanged
-                    'num_thread': 6       # Considering your i7-13700 has many cores, you can increase the number of threads
-                },
-                format='json' if response_json else None,
-                stream=False
+                messages=messages,
+                response_format=response_format,
+                timeout=150 #! set timeout
             )
             
             if response_json:
                 try:
-                    content = response['message']['content']
+                    response_data = json_repair.loads(response.choices[0].message.content)
                     
-                    json_content = json_repair.loads(content)
-                    
+                    # check if the response is valid, otherwise save the log and raise error and retry
                     if valid_def:
-                        valid_response = valid_def(json_content)
+                        valid_response = valid_def(response_data)
                         if valid_response['status'] != 'success':
-                            save_log(api_set["model"], prompt, json_content, log_title="error", message=valid_response['message'])
+                            save_log(api_set["model"], prompt, response_data, log_title="error", message=valid_response['message'])
                             raise ValueError(f"❎ API response error: {valid_response['message']}")
-                    
-                    response_data = json_content
-                    break
+                        
+                    break  # Successfully accessed and parsed, break the loop
                 except Exception as e:
-                    print(f"❎ json_repair parsing failed. Retrying: '''{content}'''")
-                    save_log(api_set["model"], prompt, content, log_title="error", message=f"json_repair parsing failed.")
+                    response_data = response.choices[0].message.content
+                    print(f"❎ json_repair parsing failed. Retrying: '''{response_data}'''")
+                    save_log(api_set["model"], prompt, response_data, log_title="error", message=f"json_repair parsing failed.")
                     if attempt == max_retries - 1:
-                        raise Exception(f"JSON parsing still failed after {max_retries} attempts: {e}")
+                        raise Exception(f"JSON parsing still failed after {max_retries} attempts: {e}\n Please check your network connection or API key or `output/gpt_log/error.json` to debug.")
             else:
-                response_data = response['message']['content']
-                break
+                response_data = response.choices[0].message.content
+                break  # Non-JSON format, break the loop directly
                 
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"Error occurred: {e}\nRetrying...")
+                if isinstance(e, RequestException):
+                    print(f"Request error: {e}. Retrying ({attempt + 1}/{max_retries})...")
+                else:
+                    print(f"Unexpected error occurred: {e}\nRetrying...")
                 time.sleep(2)
             else:
                 raise Exception(f"Still failed after {max_retries} attempts: {e}")
-
     with LOCK:
         if log_title != 'None':
             save_log(api_set["model"], prompt, response_data, log_title=log_title)
